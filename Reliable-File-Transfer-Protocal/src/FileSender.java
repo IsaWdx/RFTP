@@ -138,11 +138,10 @@ public class FileSender {
 					b.putLong(0);
 					b.putInt(sequence);//sequence of the file excl. header
 					b.putInt(0);
-					if (length != PKT_SIZE)
-						end = 1;
-					window_and_bitnumber = ack << 22 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
+					window_and_bitnumber = ack << 20 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
 					b.putInt(window_and_bitnumber);
-					sequence += 22 + length;
+					b.putInt(content_length);
+					sequence += 22 + content_length;
 					crc.reset();
 					crc.update(data, 8, data.length - 8);
 					chksum = crc.getValue();

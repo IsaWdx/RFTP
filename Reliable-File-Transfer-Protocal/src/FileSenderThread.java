@@ -1,13 +1,13 @@
-import java.io.BufferedInputStream;
-import java.io.File;
+import com.sun.javafx.geom.AreaOp;
+
 import java.io.FileInputStream;
 import java.net.*;
-import java.security.spec.ECField;
+import java.nio.channels.DatagramChannel;
 import java.util.*;
 import java.nio.*;
 import java.util.zip.*;
 
-public class FileSenderThread extends Sender implements Runnable {
+public class FileSenderThread implements Runnable {
 	public FileSenderThread(String args[]){
 		this.args = args;
 	}
@@ -15,16 +15,15 @@ public class FileSenderThread extends Sender implements Runnable {
 		try {
 			if (Thread.currentThread().getName() == "Init")
 				init();
-
-			else if (Thread.currentThread().getName() == "sender")
+			else if (Thread.currentThread().getName() == "Sender")
 				Send();
-			else{
-				Receive();//shoule receive first
+			else if(Thread.currentThread().getName() == "Receiver"){
+				Receive();
 			}
 		}
 		catch (Exception e)
 		{
-			System.out.println("fail to run thread");
+			System.out.println("fail to run a thread");
 		}
 	}
     private static String[] args;
@@ -45,14 +44,12 @@ public class FileSenderThread extends Sender implements Runnable {
 	private static short title;
 	private static short end;
 	//other necessary data structures for fast retransmission
-    private static Map<Integer, byte[]> map;
+    private static Map<Integer, DatagramPacket> map;
 	private static Map<Integer, Integer> mapoftimes;
-	private static Set<Integer> ack_set;
 	//status of the sender
 	private static int status;//0: sent syn 1: receive syn 2: sent ack and get connected 4: sent fin 5: receive fin
 	//shared resources
 	private static String filename;
-
 	private static String dst_filename;
 	private static FileInputStream fis;
 	private static DatagramSocket sk;
@@ -63,14 +60,15 @@ public class FileSenderThread extends Sender implements Runnable {
 	private static byte[] file_array;
 	private static byte[] data;
 	private static ByteBuffer b;
-
 	private static ByteBuffer bb;
+	private static int end_program;
 	public static void init()throws Exception{
 		if (args.length != 4) {
 			System.err.println("Usage: FileSender <host> <port> <src_file_name> <dest_file_name>");
 			System.exit(-1);
 		}
-		map = new HashMap<Integer, byte[]>();
+		end_program =0;//to be finished
+		map = new HashMap<Integer, DatagramPacket>();
 		mapoftimes = new HashMap<Integer, Integer>();
 		addr = new InetSocketAddress(args[0], Integer.parseInt(args[1]));
 		filename = args[2];
@@ -99,44 +97,17 @@ public class FileSenderThread extends Sender implements Runnable {
 	    return new String(hexChars);
 	}
 	public static void StartConnection(){
-        status = 2;
 	}
 	public static void Send(){
 		CRC32 crc = new CRC32();
-
-		//some initialization of header
 		sequence = ack_num = 0;
 		window = WD_SIZE;
 		ack = fin = syn = end = 0;
 		title = 1;
 		int count = 0;
 		try {
+            SendFileName();
 
-			content_length = dst_filename.length();
-			b.putLong(0);
-			b.putInt(sequence);//sequence of the file excl. header
-			b.putInt(0);
-			int window_and_bitnumber = ack<<22|syn<<19|fin<<18|title<<17|end<<16|(window&0xffff);
-			b.putInt(window_and_bitnumber);
-			b.putInt(content_length);
-			sequence += content_length;
-			b.put(dst_filename.getBytes());
-			crc.reset();
-			crc.update(data, 8, data.length - 8);
-			long chksum = crc.getValue();
-			b.rewind();
-			b.putLong(chksum);
-			System.out.println("content-length"+content_length);
-
-			pkt = new DatagramPacket(data, data.length, addr);
-			System.out.println("length"+data.length);
-
-			// Debug output
-			//System.out.println("Sent CRC:" + chksum + " Contents:" + bytesToHex(data));
-			sk.send(pkt);
-
-			System.out.println("title package prepared");
-			title = 0;
 			while (true) {
 				b.clear();
 				bb.clear();
@@ -149,14 +120,14 @@ public class FileSenderThread extends Sender implements Runnable {
 					b.putLong(0);
 					b.putInt(sequence);//sequence of the file excl. header
 					b.putInt(0);
-					window_and_bitnumber = ack << 22 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
+					int window_and_bitnumber = ack << 22 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
 					b.putInt(window_and_bitnumber);
 					b.putInt(content_length);
 					b.put(file_array,0,content_length);
 					sequence += content_length;
 					crc.reset();
 					crc.update(data, 8, data.length - 8);
-					chksum = crc.getValue();
+					long chksum = crc.getValue();
 					b.rewind();
 					b.putLong(chksum);
 
@@ -167,7 +138,7 @@ public class FileSenderThread extends Sender implements Runnable {
 					sk.send(pkt);
 
 					System.out.println("sent"+count);
-					map.put(sequence, data);//to be cleared once received acknum = sequence+1
+					map.put(sequence, pkt);//to be cleared once received acknum = sequence+1
 
 					count++;
 
@@ -179,13 +150,13 @@ public class FileSenderThread extends Sender implements Runnable {
 					b.putLong(0);
 					b.putInt(sequence);//sequence of the file excl. header
 					b.putInt(0);
-					window_and_bitnumber = ack << 20 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
+					int window_and_bitnumber = ack << 20 | syn << 19 | fin << 18 | title << 17 | end << 16 | (window & 0xffff);
 					b.putInt(window_and_bitnumber);
 					b.putInt(content_length);
 					sequence += 24 + content_length;
 					crc.reset();
 					crc.update(data, 8, data.length - 8);
-					chksum = crc.getValue();
+					long chksum = crc.getValue();
 					b.rewind();
 					b.putLong(chksum);
 
@@ -194,7 +165,7 @@ public class FileSenderThread extends Sender implements Runnable {
 					//System.out.println("Sent CRC:" + chksum + " Contents:" + bytesToHex(data));
 					sk.send(pkt);
 
-					map.put(sequence, data);//to be cleared once received acknum = sequence+1
+					map.put(sequence, pkt);//to be cleared once received acknum = sequence+1
 					count++;
 					break;
 				}
@@ -206,8 +177,86 @@ public class FileSenderThread extends Sender implements Runnable {
 			System.out.println("cannot send file");
 		}
 	}
-	public static void Receive(){
+	public static void SendFileName()throws Exception{
+		CRC32 crc = new CRC32();
+		content_length = dst_filename.length();
+		b.putLong(0);
+		b.putInt(sequence);//sequence of the file excl. header
+		b.putInt(0);
+		int window_and_bitnumber = ack<<22|syn<<19|fin<<18|title<<17|end<<16|(window&0xffff);
+		b.putInt(window_and_bitnumber);
+		b.putInt(content_length);
+		sequence += content_length;
+		b.put(dst_filename.getBytes());
+		crc.reset();
+		crc.update(data, 8, data.length - 8);
+		long chksum = crc.getValue();
+		b.rewind();
+		b.putLong(chksum);
+		System.out.println("title-content-length"+content_length);
+		pkt = new DatagramPacket(data, data.length, addr);
+		map.put(sequence, pkt);
+		System.out.println("title-data-length"+data.length);
+		// Debug output
+		//System.out.println("Sent CRC:" + chksum + " Contents:" + bytesToHex(data));
+		sk.send(pkt);
+		System.out.println("title package prepared");
+		title = 0;
+	}
+	public static void Receive(){//all parameters shouled be newed so that reduce confusion
+		byte[] reply = new byte[100];
+		ByteBuffer br = ByteBuffer.wrap(reply);
+		DatagramPacket dp = new DatagramPacket(reply,reply.length, addr);
+		try{
+        while(true){
+			sk.receive(dp);
+			//private static Map<Integer, DatagramPacket> map;
+			//private static Map<Integer, Integer> mapoftimes;
+			int rsequence = br.getInt();
+			int rtmp = br.getInt();
+			int window_and_bits = br.getInt();
+			int rend = (window_and_bits & 0x10000) >> 16;
+			int rtitle = (window_and_bits & 0x20000) >> 17;
+			int rfin = (window_and_bits & 0x40000) >> 18;
+			int rsyn = (window_and_bits & 0x80000) >> 19;
+			int rack = (window_and_bits&0x100000)>>20;
+			int rwindow = (window_and_bits & 0xffff);
+			int rcontent_length = br.getInt();//use end
+			if (rend == 1){
+				end_program = 1;
+				return;
+			}
 
+			if(mapoftimes.containsKey(rack)){
+				int times = mapoftimes.get(rack);
+				if (times>= 3) {
+					if(map.containsKey(rack))
+						sk.send(map.get(rack));
+				}
+				else {
+					mapoftimes.remove(rack);
+					mapoftimes.put(rack, times+1);
+				}
+				//clear acked map and mapof times
+				Iterator iter = mapoftimes.entrySet().iterator();
+				while (iter.hasNext()) {
+					Map.Entry<Integer, Integer> entry = (Map.Entry) iter.next();
+					int key = entry.getKey();
+					if (key<rack){
+						map.remove(key);
+						mapoftimes.remove(key);
+					}
+				}
+			}
+			else{
+				mapoftimes.put(rack,1);
+			}
+
+
+		}
+		} catch (Exception e){
+			System.out.println("cannot receive packet");
+		}
 	}
 	public static void EndConnection(){
 

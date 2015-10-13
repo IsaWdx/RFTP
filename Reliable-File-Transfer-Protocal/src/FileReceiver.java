@@ -168,7 +168,7 @@ public class FileReceiver {
 						break;
 					}
 				}
-			//	returnResponse(pkt, data, sk);
+				returnResponse(pkt, data, sk);
 			}
 			//endResponse(pkt, data, sk);
 		}
@@ -185,7 +185,8 @@ public class FileReceiver {
 	    return new String(hexChars);
 	}
 	public static void returnResponse(DatagramPacket pkt, byte[]data, DatagramSocket sk){
-		ByteBuffer b = ByteBuffer.wrap(data);
+		reply = new byte[100];
+		ByteBuffer b = ByteBuffer.wrap(reply);
 		b.clear();
 		b.putLong(0);
 		b.putInt(sequence);//useless
@@ -208,7 +209,8 @@ public class FileReceiver {
 		}
 
 	}
-	public static void endResponse(DatagramPacket pkt, byte[]data, DatagramSocket sk){
+	public static void endResponse(DatagramPacket pkt, byte[]data, DatagramSocket sk)//not finished yet
+	 {
 		ByteBuffer b = ByteBuffer.wrap(data);
 		b.clear();
 		b.putLong(0);

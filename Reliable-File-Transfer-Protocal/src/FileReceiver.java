@@ -118,8 +118,15 @@ public class FileReceiver {
 							ack_num += window_buffer.get(ack_num);
 						}//if there are bytes occupied behind
 						window_buffer.put(sequence, content_length);
+						System.out.println("Case1" );
 					} else if (end!=1&&(sequence == ack_num) &&( sequence - start_sequence + content_length > WD_SIZE)) {//output + put in sequentially + update ack and sequence and buffer
 						System.out.println("there is an output");
+						System.out.println("sequence"+sequence);
+						System.out.println("ack_NUM"+ack_num);
+						System.out.println("content_length"+content_length);
+						System.out.println("sequence minus startsequence" + (sequence - start_sequence));
+						System.out.println("WD_SIZE" + WD_SIZE);
+
 						fos.write(windowbyte, 0, sequence - start_sequence);
 						bb.clear();
 						start_sequence = ack_num;
@@ -129,20 +136,26 @@ public class FileReceiver {
 
 						byte[]newbyte = Arrays.copyOfRange(data, 24, content_length + 24);
 						System.arraycopy(newbyte, 0, windowbyte, sequence - start_sequence, content_length);
-
+						System.out.println("Case2" );
 					} else if (end!=1&&(sequence != ack_num) && (sequence - start_sequence + content_length < WD_SIZE)) {//put in jump
+						System.out.println("sequence"+sequence);
+						System.out.println("ack_NUM"+ack_num);
+						System.out.println("content_length"+content_length);
+						System.out.println("sequence minus startsequence" + (sequence - start_sequence));
+						System.out.println("WD_SIZE" + WD_SIZE);
 
 						byte[]newbyte = Arrays.copyOfRange(data, 24, content_length + 24);
 						System.arraycopy(newbyte, 0, windowbyte, sequence - start_sequence, content_length);
 
 						window_buffer.put(sequence, content_length);
+						System.out.println("Case3" );
 					} else if (end!=1&&(sequence != ack_num) &&( sequence - start_sequence + content_length > WD_SIZE)) {//discard future packets
 						System.out.println("sequence"+sequence);
 						System.out.println("ack_NUM"+ack_num);
 						System.out.println("content_length"+content_length);
 						System.out.println("sequence minus startsequence" + (sequence - start_sequence));
 						System.out.println("WD_SIZE" + WD_SIZE);
-						;
+						System.out.println("Case4" );
 					}
 					if (end == 1) {
 						end_sequence = sequence;

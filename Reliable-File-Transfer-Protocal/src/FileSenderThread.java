@@ -7,8 +7,27 @@ import java.util.*;
 import java.nio.*;
 import java.util.zip.*;
 
-public class FileSender {
+public class FileSenderThread extends Sender implements Runnable {
+	public FileSenderThread(String args[]){
+		this.args = args;
+	}
+	public void run(){
+		try {
+			if (Thread.currentThread().getName() == "Init")
+				init();
 
+			else if (Thread.currentThread().getName() == "sender")
+				Send();
+			else{
+				Receive();//shoule receive first
+			}
+		}
+		catch (Exception e)
+		{
+			System.out.println("fail to run thread");
+		}
+	}
+    private static String[] args;
 	//total length of header: 24bytes
 	//the long field
 	private static long checksum;
@@ -46,8 +65,7 @@ public class FileSender {
 	private static ByteBuffer b;
 
 	private static ByteBuffer bb;
-	public static void main(String[] args) throws Exception 
-	{
+	public static void init()throws Exception{
 		if (args.length != 4) {
 			System.err.println("Usage: FileSender <host> <port> <src_file_name> <dest_file_name>");
 			System.exit(-1);
@@ -67,9 +85,8 @@ public class FileSender {
 		b = ByteBuffer.wrap(data);
 		bb = ByteBuffer.wrap(file_array);
 		status = 0;
-		StartConnection();
-		SendFile();
 	}
+
 
 	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
 	public static String bytesToHex(byte[] bytes) {
@@ -84,7 +101,7 @@ public class FileSender {
 	public static void StartConnection(){
         status = 2;
 	}
-	public static void SendFile(){
+	public static void Send(){
 		CRC32 crc = new CRC32();
 
 		//some initialization of header
@@ -188,6 +205,9 @@ public class FileSender {
 		}catch (Exception e){
 			System.out.println("cannot send file");
 		}
+	}
+	public static void Receive(){
+
 	}
 	public static void EndConnection(){
 

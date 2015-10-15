@@ -113,6 +113,7 @@ public class FileReceiver {
                 filename = new String(name);
                 try {
                     fos = new FileOutputStream(filename);
+                    System.out.println("time"+ System.currentTimeMillis());
                 } catch (Exception e) {
                     System.out.println("Exception Opening file!");
                 }
@@ -180,6 +181,8 @@ public class FileReceiver {
             }
             reply_status = 2;
             fos.write(window, 0, reply_ack_num - start_sequence);
+            fos.close();
+            System.out.println("time"+ System.currentTimeMillis());
         }
         catch (Exception e) {
             System.out.println("Exception receiving file!");
@@ -212,6 +215,7 @@ public class FileReceiver {
         int counter = 100;
         while(counter!=0){
             try {
+                counter--;
                 sk.send(reply_pkt);
                 System.out.println("response packet: "+reply_ack_num);
             } catch (Exception e) {

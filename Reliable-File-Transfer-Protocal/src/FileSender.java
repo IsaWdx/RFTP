@@ -142,9 +142,13 @@ public class FileSender {
     }
     public static void Continue(){
         while(end_program == 0) {
-            if(end_sending == 0)
-                Send();
+
+            if(received_ack + 4000>sequence&&end_sending == 0 ) {
+                    Send();
+            }
+            else
             Receive();
+
         }
     }
     public static void Send() {
@@ -158,6 +162,8 @@ public class FileSender {
                     // reserve space for checksum
                     b_data.putLong(0);
                     b_data.putInt(sequence);//sequence of the file excl. header
+
+                    System.out.print("data sequence: " + sequence);
                     b_data.putInt(1);
                     b_data.putInt(content_length);
                     b_data.put(file_array, 0, content_length);
@@ -169,6 +175,7 @@ public class FileSender {
                     b_data.putLong(checksum);
                     byte[] mapbyte = data.clone();
                     map.put(sequence, mapbyte);
+                    System.out.println("map sequence: "+sequence);
                     pkt = new DatagramPacket(data, data.length, addr);
                     sk.send(pkt);
                     sequence += content_length;
@@ -255,7 +262,7 @@ public class FileSender {
                         }
                     } else {
                         times.put(received_ack, 1);
-                    }
+                   }
                 }
             }
         }
